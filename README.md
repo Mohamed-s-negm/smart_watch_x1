@@ -22,3 +22,4 @@ The main components used are:
 --------------------------------------------------------------
 Next, I start with the coding process.
 
+The main.cpp file contains the code for ESP32.
