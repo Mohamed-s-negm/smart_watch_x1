@@ -2,7 +2,7 @@ from ml_model import ML_Model
 import os
 
 # Define the model file path
-model_file = 'smart_watch_x1/Input the trained file you want to use.'
+model_file = 'smart_watch_x1/trainted_models/Input the trained file you want to use.'
 
 # Check if the model file exists
 if not os.path.exists(model_file):
