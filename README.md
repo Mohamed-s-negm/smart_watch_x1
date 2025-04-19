@@ -22,4 +22,13 @@ The main components used are:
 --------------------------------------------------------------
 Next, I start with the coding process.
 
-The main.cpp file contains the code for ESP32.
+The main.cpp file contains the code that will be used for the ESP32 to obtain the values from the sensors.
+
+Since, we are not using a real version, we can't get real values so we have to create our own dataset.
+
+I obtained a dataset of 10000 samples from chatgpt.
+
+First, in the data_generate file, I grouped every 10 samples together into a group then shuffled the groups.
+The second step will be to make another dataset from the existing one but instead of showing the data of the sensors, I want the slope, the change and the average of the data of each 10 samples.
+Depending on the change should be the factor for the machine learning model later to decide which state is the user at.
+
