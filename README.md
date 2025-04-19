@@ -34,6 +34,12 @@ Depending on the change should be the factor for the machine learning model late
 
 The analysis.py file is responsible for getting the average values for each group of states and store them into a new dataset to be used to train our machine learning model.
 
-ml_model.py is where we create our machine learning model which will be responsible for handling the data and make the final dicision.
+ml_test.py is where we create our machine learning test model which will be responsible for handling the data and make the final dicision.
 
 I have finished training the model with each DecisionTree and RandomForest models. Both models gave excellent accuracy of above 99% near to 100%, which can be expected since this data was made using code.
+
+I have finished the class responsible for the machine learning model and it's inside ml_model.py file. The class has 2 attributes, either giving a data_path to train a new model or provide the model_file of a previously trained model.
+In case of trainning a new model, it automatocally splits and prepare the data. Then, the user has to call the method for which model he wants to train. After the training, a new file for the trained model can be found which can then be assigned to the model_file attribute which will automatically load the model and then, the model can be again used.
+
+The main_py.py has the main code for calling the previously made model to be used.
+
