@@ -32,3 +32,6 @@ First, in the data_generate file, I grouped every 10 samples together into a gro
 The second step will be to make another dataset from the existing one but instead of showing the data of the sensors, I want the slope, the change and the average of the data of each 10 samples.
 Depending on the change should be the factor for the machine learning model later to decide which state is the user at.
 
+The analysis.py file is responsible for getting the average values for each group of states and store them into a new dataset to be used to train our machine learning model.
+
+
