@@ -1,0 +1,24 @@
+{
+    "Header": {
+        "Comment": "All values are metric (mm)",
+        "CreationDate": "2025-04-13T19:25:34Z",
+        "GenerationSoftware": {
+            "Application": "Fusion Electronics",
+            "Vendor": "Autodesk",
+            "Version": "9.7.0"
+        },
+        "Part": "Single"
+    },
+    "Overall": {
+        "BoardThickness": 1.57,
+        "LayerNumber": 2,
+        "Name": {
+            "ProjectId": "New_PCB v4"
+        },
+        "Owner": "Mohamed Shawki Eid Elsayed Negm <210702723@posta.mu.edu.tr>",
+        "Size": {
+            "X": 74,
+            "Y": 44
+        }
+    }
+}
