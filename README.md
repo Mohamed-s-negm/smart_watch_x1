@@ -41,5 +41,7 @@ I have finished training the model with each DecisionTree and RandomForest model
 I have finished the class responsible for the machine learning model and it's inside ml_model.py file. The class has 2 attributes, either giving a data_path to train a new model or provide the model_file of a previously trained model.
 In case of trainning a new model, it automatocally splits and prepare the data. Then, the user has to call the method for which model he wants to train. After the training, a new file for the trained model can be found which can then be assigned to the model_file attribute which will automatically load the model and then, the model can be again used.
 
+I have created a file burn_cal.py which has a class responsible for handling the calculations of the calories burnt by the user for every entery the user enters for a duration of a 1 minute.
+
 The main_py.py has the main code for calling the previously made model to be used.
 
