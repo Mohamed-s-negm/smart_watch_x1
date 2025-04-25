@@ -14,6 +14,10 @@ class CaloriesBurnt:
         else:
             cals = ((self.age * 0.074) - (self.weight * 0.05741) + (heartbr * 0.4472) - 20.4022) * time / 4.184
 
-        print(f"The calories burnt are {cals} calories for 1 minute.")
+        # Ensure calories are never negative
+        cals = max(0, cals)
+        rounded_cals = round(cals, 1)
+        print(f"The calories burnt are {rounded_cals} calories for 1 minute.")
+        return rounded_cals
     
 
