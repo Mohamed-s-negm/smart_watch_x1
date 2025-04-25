@@ -45,3 +45,6 @@ I have created a file burn_cal.py which has a class responsible for handling the
 
 The main_py.py has the main code for calling the previously made model to be used.
 
+I used a simple streamlit UI to get the user data and show the user his state and the calories he burns each minute. I also added a danger detection when the state of the user is in danger that he will get an alert that he is in a danger state.
+
+We can say that the project is finished by now. ^_^
