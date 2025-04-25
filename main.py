@@ -33,7 +33,7 @@ else:
     heartbr = st.number_input("Input the heartbeat rate")
     oxygen = st.slider("Input the oxygen level % ", min_value=0, max_value=100)
     temp = st.number_input("Input the temperature")
-    loc = st.select_slider("Input the change in position", options=[1, 2, 3, 4, 5])
+    loc = st.select_slider("Input the change in position", options=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
 
     submit_button = st.button(label="Start")
 
