@@ -47,4 +47,6 @@ The main_py.py has the main code for calling the previously made model to be use
 
 I used a simple streamlit UI to get the user data and show the user his state and the calories he burns each minute. I also added a danger detection when the state of the user is in danger that he will get an alert that he is in a danger state.
 
+I added a run_app file to immediatly run the UI when clicked.
+
 We can say that the project is finished by now. ^_^
