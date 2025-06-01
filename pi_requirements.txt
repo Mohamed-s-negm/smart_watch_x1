@@ -1,0 +1,20 @@
+# Core dependencies
+paho-mqtt==1.6.1
+numpy==1.24.3
+Pillow==10.0.0
+python-dotenv==1.0.0
+scipy==1.11.3
+matplotlib==3.7.2
+
+# Adafruit libraries (latest versions)
+adafruit-circuitpython-mcp9808==3.3.27
+adafruit-circuitpython-mpu6050==1.0.0
+adafruit-circuitpython-ssd1306==2.12.7
+adafruit-blinka==8.32.0
+adafruit-circuitpython-busdevice==5.2.8
+
+# MAX30102 library
+max30102==0.1.0
+
+# Note: RPi.GPIO and smbus2 are Raspberry Pi specific and should be installed on the Pi only
+# They are not needed for testing on Windows 
