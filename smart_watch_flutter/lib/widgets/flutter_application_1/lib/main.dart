@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 
@@ -35,8 +36,14 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   int _selectedIndex = 0;
+  Timer? _alarmCheckTimer;
+  bool _isAlarmPlaying = false;
+  Timer? _vibrationTimer;
+  Timer? _soundTimer;
+  List<Alarm> _alarms = [];
+  Alarm? _currentAlarm;
 
   final List<Widget> _pages = [
     const HomePage(),
@@ -44,6 +51,207 @@ class _MyHomePageState extends State<MyHomePage> {
     const FitnessTrackingPage(),
     const WhatsAppPage(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _loadAlarms();
+    _startAlarmCheck();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _alarmCheckTimer?.cancel();
+    _vibrationTimer?.cancel();
+    _soundTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadAlarms();
+    }
+  }
+
+  void _startAlarmCheck() {
+    _alarmCheckTimer?.cancel();
+    _alarmCheckTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      _checkAlarms();
+    });
+  }
+
+  Future<void> _loadAlarms() async {
+    final prefs = await SharedPreferences.getInstance();
+    final alarmsJson = prefs.getStringList('alarms') ?? [];
+    setState(() {
+      _alarms = alarmsJson
+          .map((json) => Alarm.fromJson(json))
+          .toList()
+        ..sort((a, b) => a.time.compareTo(b.time));
+    });
+  }
+
+  Future<void> _checkAlarms() async {
+    if (_isAlarmPlaying) return;
+
+    final now = DateTime.now();
+    final currentTime = TimeOfDay(hour: now.hour, minute: now.minute);
+
+    for (final alarm in _alarms) {
+      if (alarm.isEnabled &&
+          alarm.time.hour == currentTime.hour &&
+          alarm.time.minute == currentTime.minute &&
+          now.second == 0) {
+        _playAlarm(alarm);
+        break;
+      }
+    }
+  }
+
+  void _startVibration() {
+    _vibrationTimer?.cancel();
+    _vibrationTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      HapticFeedback.vibrate();
+    });
+  }
+
+  void _stopVibration() {
+    _vibrationTimer?.cancel();
+    _vibrationTimer = null;
+  }
+
+  Future<void> _playAlarm(Alarm alarm) async {
+    if (_isAlarmPlaying) return;
+    
+    setState(() {
+      _isAlarmPlaying = true;
+      _currentAlarm = alarm;
+    });
+    
+    // Start vibration
+    _startVibration();
+    
+    // Play alarm sound
+    _soundTimer?.cancel();
+    _soundTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      SystemSound.play(SystemSoundType.alert);
+      SystemSound.play(SystemSoundType.click);
+    });
+    
+    // Show alarm dialog
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => WillPopScope(
+          onWillPop: () async => false,
+          child: AlertDialog(
+            backgroundColor: Colors.black,
+            title: const Text(
+              'Alarm',
+              style: TextStyle(color: Colors.white),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Time to wake up!',
+                  style: TextStyle(color: Colors.white),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.alarm,
+                    color: Colors.blue,
+                    size: 50,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  _stopAlarm();
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Stop'),
+              ),
+              TextButton(
+                onPressed: () {
+                  _snoozeAlarm(alarm);
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Snooze'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _stopAlarm() async {
+    _stopVibration();
+    _soundTimer?.cancel();
+    
+    if (_currentAlarm != null) {
+      setState(() {
+        final index = _alarms.indexWhere((a) => a.id == _currentAlarm!.id);
+        if (index != -1) {
+          _alarms[index] = _alarms[index].copyWith(isEnabled: false);
+        }
+      });
+      await _saveAlarms();
+    }
+    
+    setState(() {
+      _isAlarmPlaying = false;
+      _currentAlarm = null;
+    });
+  }
+
+  Future<void> _snoozeAlarm(Alarm alarm) async {
+    _stopAlarm();
+    
+    // Set snooze for 5 minutes
+    final now = DateTime.now();
+    final snoozeTime = now.add(const Duration(minutes: 5));
+    final snoozeAlarm = Alarm(
+      id: 'snooze_${DateTime.now().millisecondsSinceEpoch}',
+      time: TimeOfDay(hour: snoozeTime.hour, minute: snoozeTime.minute),
+      isEnabled: true,
+    );
+
+    setState(() {
+      _alarms.add(snoozeAlarm);
+      _alarms.sort((a, b) => a.time.compareTo(b.time));
+    });
+    await _saveAlarms();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Alarm snoozed for 5 minutes'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _saveAlarms() async {
+    final prefs = await SharedPreferences.getInstance();
+    final alarmsJson = _alarms.map((alarm) => alarm.toJson()).toList();
+    await prefs.setStringList('alarms', alarmsJson);
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -54,7 +262,36 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _pages[_selectedIndex],
+      body: Stack(
+        children: [
+          _pages[_selectedIndex],
+          if (_isAlarmPlaying)
+            Container(
+              color: Colors.black.withOpacity(0.5),
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.alarm,
+                      color: Colors.red,
+                      size: 50,
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Alarm is playing!',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: _onItemTapped,

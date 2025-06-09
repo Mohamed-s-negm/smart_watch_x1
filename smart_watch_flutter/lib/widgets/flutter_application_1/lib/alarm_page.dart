@@ -15,156 +15,11 @@ class AlarmPage extends StatefulWidget {
 class _AlarmPageState extends State<AlarmPage> {
   List<Alarm> _alarms = [];
   bool _isLoading = true;
-  Timer? _alarmCheckTimer;
-  bool _isAlarmPlaying = false;
-  Timer? _vibrationTimer;
-  Timer? _snoozeTimer;
 
   @override
   void initState() {
     super.initState();
     _loadAlarms();
-    _startAlarmCheck();
-  }
-
-  @override
-  void dispose() {
-    _alarmCheckTimer?.cancel();
-    _vibrationTimer?.cancel();
-    _snoozeTimer?.cancel();
-    super.dispose();
-  }
-
-  void _startAlarmCheck() {
-    _alarmCheckTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      _checkAlarms();
-    });
-  }
-
-  Future<void> _checkAlarms() async {
-    final now = DateTime.now();
-    final currentTime = TimeOfDay(hour: now.hour, minute: now.minute);
-
-    for (final alarm in _alarms) {
-      if (alarm.isEnabled &&
-          alarm.time.hour == currentTime.hour &&
-          alarm.time.minute == currentTime.minute &&
-          now.second == 0) {
-        _playAlarm(alarm);
-      }
-    }
-  }
-
-  Future<void> _playAlarm(Alarm alarm) async {
-    if (!_isAlarmPlaying) {
-      setState(() {
-        _isAlarmPlaying = true;
-      });
-      
-      // Start vibration
-      _startVibration();
-      
-      // Show alarm dialog
-      if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => AlertDialog(
-            backgroundColor: Colors.black,
-            title: const Text(
-              'Alarm',
-              style: TextStyle(color: Colors.white),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Time to wake up!',
-                  style: TextStyle(color: Colors.white),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.alarm,
-                    color: Colors.blue,
-                    size: 50,
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  _stopAlarm();
-                  Navigator.of(context).pop();
-                },
-                child: const Text('Stop'),
-              ),
-              TextButton(
-                onPressed: () {
-                  _snoozeAlarm(alarm);
-                  Navigator.of(context).pop();
-                },
-                child: const Text('Snooze'),
-              ),
-            ],
-          ),
-        );
-      }
-    }
-  }
-
-  void _startVibration() {
-    _vibrationTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
-      HapticFeedback.vibrate();
-    });
-  }
-
-  void _stopVibration() {
-    _vibrationTimer?.cancel();
-    _vibrationTimer = null;
-  }
-
-  Future<void> _snoozeAlarm(Alarm alarm) async {
-    _stopAlarm();
-    
-    // Set snooze for 5 minutes
-    final now = DateTime.now();
-    final snoozeTime = now.add(const Duration(minutes: 5));
-    final snoozeAlarm = Alarm(
-      id: 'snooze_${DateTime.now().millisecondsSinceEpoch}',
-      time: TimeOfDay(hour: snoozeTime.hour, minute: snoozeTime.minute),
-      isEnabled: true,
-    );
-
-    setState(() {
-      _alarms.add(snoozeAlarm);
-      _alarms.sort((a, b) => a.time.compareTo(b.time));
-    });
-    await _saveAlarms();
-
-    // Show snooze confirmation
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Alarm snoozed for 5 minutes'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
-  Future<void> _stopAlarm() async {
-    _stopVibration();
-    setState(() {
-      _isAlarmPlaying = false;
-    });
   }
 
   Future<void> _loadAlarms() async {
@@ -254,7 +109,10 @@ class _AlarmPageState extends State<AlarmPage> {
       setState(() {
         final index = _alarms.indexWhere((a) => a.id == alarm.id);
         if (index != -1) {
-          _alarms[index] = alarm.copyWith(time: newTime);
+          _alarms[index] = alarm.copyWith(
+            time: newTime,
+            isEnabled: true,
+          );
           _alarms.sort((a, b) => a.time.compareTo(b.time));
         }
       });
