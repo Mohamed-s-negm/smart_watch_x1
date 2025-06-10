@@ -27,12 +27,26 @@ class ML_Model:
             self.load_model(model_file)
 
     #We prepare the data to be handled by the model
-    def load_split_data(self, path):
-        df = pd.read_csv(path)
-        X = df.drop(columns='State')
-        y = df['State']
+    def load_split_data(self, data_path):
+        # Load the data
+        df = pd.read_csv(data_path)
+        
+        # Select features and target
+        feature_columns = [
+            'HR_Mean', 'Temp_Mean', 
+            'hand_acc_16g_x_Mean', 'hand_acc_16g_y_Mean', 'hand_acc_16g_z_Mean',
+            'hand_gyro_x_Mean', 'hand_gyro_y_Mean', 'hand_gyro_z_Mean',
+            'hand_magn_x_Mean', 'hand_magn_y_Mean', 'hand_magn_z_Mean',
+            'hand_orientation_1_Mean', 'hand_orientation_2_Mean',
+            'hand_orientation_3_Mean', 'hand_orientation_4_Mean'
+        ]
+        
+        X = df[feature_columns]
+        y = df['Activity_ID_Numerical']
+        
+        # Split the data
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
-            X, y, test_size=0.3, random_state=101
+            X, y, test_size=0.2, random_state=42
         )
 
     #Function for the random_forest model

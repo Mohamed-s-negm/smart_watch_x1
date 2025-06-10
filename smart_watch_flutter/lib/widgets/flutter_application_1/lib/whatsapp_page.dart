@@ -8,6 +8,7 @@ import 'package:whatsapp_unilink/whatsapp_unilink.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class WhatsAppPage extends StatefulWidget {
   const WhatsAppPage({super.key});
@@ -17,13 +18,14 @@ class WhatsAppPage extends StatefulWidget {
 }
 
 class _WhatsAppPageState extends State<WhatsAppPage> {
-  final List<Map<String, dynamic>> _notifications = [];
-  final List<Map<String, dynamic>> _chatHistory = [];
+  List<Map<String, dynamic>> _notifications = [];
+  bool _isLoading = true;
+  final TextEditingController _messageController = TextEditingController();
   bool _isRecording = false;
   final _flutterSound = FlutterSoundRecorder();
   String? _recordingPath;
   final String _whatsappNumber = '+905314316779';
-  bool _isLoading = false;
+  final List<Map<String, dynamic>> _chatHistory = [];
 
   @override
   void initState() {
@@ -46,33 +48,35 @@ class _WhatsAppPageState extends State<WhatsAppPage> {
   }
 
   Future<void> _loadNotifications() async {
-    if (_isLoading) return;
-    
     setState(() {
       _isLoading = true;
     });
 
     try {
-      final response = await http.get(Uri.parse('http://localhost:5000/whatsapp/notifications'));
+      final response = await http.get(
+        Uri.parse('http://localhost:5000/whatsapp/notifications'),
+      );
+
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final List<dynamic> data = json.decode(response.body);
         setState(() {
-          _notifications.clear();
-          _notifications.addAll(List<Map<String, dynamic>>.from(data));
-        });
-      }
-    } catch (e) {
-      print('Error loading notifications: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading notifications: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
+          _notifications = data.cast<Map<String, dynamic>>();
           _isLoading = false;
         });
+      } else {
+        throw Exception('Failed to load notifications');
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading notifications: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -89,6 +93,43 @@ class _WhatsAppPageState extends State<WhatsAppPage> {
       }
     } catch (e) {
       print('Error loading chat history: $e');
+    }
+  }
+
+  Future<void> _sendReply(String message, String? originalMessage) async {
+    try {
+      final response = await http.post(
+        Uri.parse('http://localhost:5000/whatsapp/reply'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'message': message,
+          'reply_to': originalMessage,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        _messageController.clear();
+        _loadNotifications(); // Reload to show the reply
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Reply sent successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        throw Exception('Failed to send reply');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sending reply: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -185,13 +226,89 @@ class _WhatsAppPageState extends State<WhatsAppPage> {
     }
   }
 
+  void _showReplyDialog(String originalMessage) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text(
+          'Reply to Message',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey[800],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Original message:',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    originalMessage,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _messageController,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Type your reply...',
+                hintStyle: const TextStyle(color: Colors.grey),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                filled: true,
+                fillColor: Colors.grey[800],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (_messageController.text.isNotEmpty) {
+                _sendReply(_messageController.text, originalMessage);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Send'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
+        title: const Text('WhatsApp'),
         backgroundColor: Colors.black,
-        title: const Text('WhatsApp Notifications'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -204,7 +321,7 @@ class _WhatsAppPageState extends State<WhatsAppPage> {
           : _notifications.isEmpty
               ? const Center(
                   child: Text(
-                    'No notifications yet',
+                    'No messages yet',
                     style: TextStyle(color: Colors.white70),
                   ),
                 )
@@ -218,36 +335,117 @@ class _WhatsAppPageState extends State<WhatsAppPage> {
                         horizontal: 16,
                         vertical: 8,
                       ),
-                      child: ListTile(
-                        leading: const CircleAvatar(
-                          backgroundColor: Colors.green,
-                          child: Icon(Icons.message, color: Colors.white),
-                        ),
-                        title: Text(
-                          notification['title'] ?? 'New Message',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        subtitle: Text(
-                          notification['message'] ?? '',
-                          style: const TextStyle(color: Colors.white70),
-                        ),
-                        trailing: Text(
-                          notification['time'] ?? '',
-                          style: const TextStyle(color: Colors.white70),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const CircleAvatar(
+                                  backgroundColor: Colors.green,
+                                  child: Icon(Icons.message, color: Colors.white),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        notification['title'] ?? 'New Message',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        notification['time'] ?? '',
+                                        style: const TextStyle(
+                                          color: Colors.grey,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.reply,
+                                    color: Colors.blue,
+                                  ),
+                                  onPressed: () {
+                                    _showReplyDialog(notification['message']);
+                                  },
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              notification['message'] ?? '',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     );
                   },
                 ),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(8.0),
+        color: Colors.grey[900],
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _messageController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Type a message...',
+                  hintStyle: const TextStyle(color: Colors.grey),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[800],
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              icon: Icon(
+                _isRecording ? Icons.stop : Icons.mic,
+                color: _isRecording ? Colors.red : Colors.blue,
+              ),
+              onPressed: _isRecording ? _stopRecording : _startRecording,
+            ),
+            IconButton(
+              icon: const Icon(Icons.send, color: Colors.blue),
+              onPressed: () {
+                if (_messageController.text.isNotEmpty) {
+                  _sendReply(_messageController.text, null);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   @override
   void dispose() {
     _flutterSound.closeRecorder();
+    _messageController.dispose();
     super.dispose();
   }
 } 

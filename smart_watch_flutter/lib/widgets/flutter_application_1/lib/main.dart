@@ -5,6 +5,7 @@ import 'dart:async';
 import 'fitness_tracking.dart';
 import 'whatsapp_page.dart';
 import 'alarm_page.dart';
+import 'fridge_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
@@ -50,6 +51,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     const AlarmPage(),
     const FitnessTrackingPage(),
     const WhatsAppPage(),
+    const FridgePage(),
   ];
 
   @override
@@ -312,6 +314,10 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
             icon: Icon(Icons.message),
             label: 'WhatsApp',
           ),
+          NavigationDestination(
+            icon: Icon(Icons.kitchen),
+            label: 'Fridge',
+          ),
         ],
       ),
     );
@@ -384,11 +390,15 @@ class _HomePageState extends State<HomePage> {
   }
 
   String _formatTime(DateTime dateTime) {
-    return DateFormat('HH:mm:ss').format(dateTime);
+    // Get current time
+    final currentTime = DateTime.now();
+    return DateFormat('HH:mm:ss').format(currentTime);
   }
 
   String _formatDate(DateTime dateTime) {
-    return DateFormat('EEEE, MMMM d').format(dateTime);
+    // Get current date
+    final currentTime = DateTime.now();
+    return DateFormat('dd/MM/yyyy').format(currentTime);
   }
 
   @override

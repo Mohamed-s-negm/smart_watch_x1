@@ -1,20 +1,21 @@
 @echo off
-echo Starting Smart Watch X1 Application...
+echo Starting Smart Watch X1 application...
 
 :: Activate virtual environment
 echo Activating virtual environment...
 call .\.venv\Scripts\activate
 
-:: Start the API server in a new window
+:: Start the combined API server
 echo Starting API server...
-start cmd /k "python api_server.py"
+start cmd /k "python combined_server.py"
 
-:: Wait a few seconds for the API server to start
+:: Wait for the server to start
 timeout /t 5
 
-:: Run Flutter app
+:: Start the Flutter app
 echo Starting Flutter app...
-flutter run
+start cmd /k "flutter run"
 
-:: Keep the window open if there's an error
-pause 
+echo Application started!
+echo Please make sure to update the serverUrl in lib/fridge_page.dart with your computer's IP address.
+echo You can find your IP address by running 'ipconfig' in a command prompt. 

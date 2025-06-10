@@ -21,15 +21,12 @@ TWILIO_WHATSAPP_NUMBER = 'whatsapp:+14155238886'  # Your Twilio WhatsApp number
 # Initialize Twilio client
 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
-# Load the trained model
-model_path = os.path.join('assets', 'trained_decision_tree.pkl')
-if not os.path.exists(model_path):
-    model_path = 'trained_decision_tree.pkl'  # Fallback to root directory
-
+# Load the Random Forest model
 try:
+    model_path = os.path.join('trained_models', 'new_model_rf.pkl')
     with open(model_path, 'rb') as f:
         model = pickle.load(f)
-    print(f"Decision Tree model loaded successfully from {model_path}")
+    print(f"Random Forest model loaded successfully from {model_path}")
     print("Model classes:", model.classes_)
 except Exception as e:
     print(f"Error loading model: {str(e)}")
@@ -112,6 +109,47 @@ def send_voice_message():
         print(f"Error sending voice message: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/whatsapp/reply', methods=['POST'])
+def send_whatsapp_reply():
+    try:
+        data = request.get_json()
+        message = data.get('message')
+        reply_to = data.get('reply_to')
+
+        if not message:
+            return jsonify({'error': 'Message is required'}), 400
+
+        # Format the message with reply context if needed
+        formatted_message = message
+        if reply_to:
+            formatted_message = f"Replying to: {reply_to}\n{message}"
+
+        # Send message using Twilio
+        message = client.messages.create(
+            from_=TWILIO_WHATSAPP_NUMBER,
+            body=formatted_message,
+            to=f'whatsapp:{WHATSAPP_NUMBER}'
+        )
+
+        # Store the message in chat history
+        chat_history.append({
+            'message': message,
+            'reply_to': reply_to,
+            'time': datetime.now().strftime('%I:%M %p')
+        })
+
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        print(f"Error sending reply: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# Initialize chat history list
+chat_history = []
+
+@app.route('/whatsapp/chats', methods=['GET'])
+def get_chat_history():
+    return jsonify(chat_history)
+
 # Existing fitness tracking endpoints
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -122,42 +160,45 @@ def predict():
         data = request.get_json()
         print("Received data:", data)
         
-        # Create input array in the exact format expected by the model
-        input_data = np.array([[
-            data['heartRate'],  # bpm
-            data['temperature'],  # temp
-            data['spo2'],  # Oxyg
-            data['positionChange']  # motion
-        ]])
+        # Extract features in the correct order
+        features = [
+            data['HR_Mean'],
+            data['Temp_Mean'],
+            data['hand_acc_16g_x_Mean'],
+            data['hand_acc_16g_y_Mean'],
+            data['hand_acc_16g_z_Mean'],
+            data['hand_gyro_x_Mean'],
+            data['hand_gyro_y_Mean'],
+            data['hand_gyro_z_Mean'],
+            data['hand_magn_x_Mean'],
+            data['hand_magn_y_Mean'],
+            data['hand_magn_z_Mean'],
+            data['hand_orientation_1_Mean'],
+            data['hand_orientation_2_Mean'],
+            data['hand_orientation_3_Mean'],
+            data['hand_orientation_4_Mean']
+        ]
+
+        # Convert to numpy array and reshape for prediction
+        features_array = np.array(features).reshape(1, -1)
         
-        print("Input data shape:", input_data.shape)
-        print("Input data:", input_data)
+        # Get prediction
+        prediction = model.predict(features_array)[0]
         
-        # Get raw prediction
-        prediction = model.predict(input_data)[0]
-        print("Raw prediction:", prediction)
+        # Get probabilities for all classes
+        probabilities = model.predict_proba(features_array)[0]
         
-        # Get prediction probabilities
-        prediction_proba = model.predict_proba(input_data)[0]
-        print("Prediction probabilities:", dict(zip(model.classes_, prediction_proba)))
-        
-        # Calculate calories
-        calories_calculator = CaloriesBurnt(
-            gender=data['gender'],
-            weight=data['weight'],
-            age=data['age']
-        )
-        calories = calories_calculator.cal_count(data['heartRate'])
-        print("Calories burned:", calories)
+        # Convert probabilities to a dictionary
+        prob_dict = {str(i+1): float(prob) for i, prob in enumerate(probabilities)}
         
         return jsonify({
-            'activity_state': prediction,
-            'calories_burned': calories,
-            'probabilities': dict(zip(model.classes_, prediction_proba.tolist()))
+            'predicted_activity': int(prediction),
+            'probabilities': prob_dict
         })
+
     except Exception as e:
         print("Error:", str(e))
         return jsonify({'error': str(e)}), 400
 
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.run(debug=True, port=5000) 

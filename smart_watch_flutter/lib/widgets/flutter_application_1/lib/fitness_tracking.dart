@@ -7,6 +7,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 const String apiUrl = 'http://localhost:5000/predict';
 // Example: const String apiUrl = 'http://192.168.1.3:5000/predict';
 
+// Activity mapping for the new model
+const Map<int, String> activityMapping = {
+  1: "Lying",
+  2: "Sitting",
+  3: "Standing",
+  4: "Walking",
+  5: "Running",
+  6: "Cycling",
+  7: "Nordic walking",
+  8: "Computer Working",
+  9: "Ascending stairs",
+  10: "Descending stairs",
+  11: "Vacuum cleaning",
+  12: "Ironing",
+  13: "Rope jumping"
+};
+
 class FitnessTrackingPage extends StatefulWidget {
   const FitnessTrackingPage({super.key});
 
@@ -16,15 +33,23 @@ class FitnessTrackingPage extends StatefulWidget {
 
 class _FitnessTrackingPageState extends State<FitnessTrackingPage> {
   final _formKey = GlobalKey<FormState>();
-  final _heartRateController = TextEditingController();
-  final _spo2Controller = TextEditingController();
-  final _temperatureController = TextEditingController();
-  final _positionChangeController = TextEditingController();
-  final _weightController = TextEditingController();
-  final _ageController = TextEditingController();
-  String _gender = 'male';
+  final _hrMeanController = TextEditingController();
+  final _tempMeanController = TextEditingController();
+  final _handAccXController = TextEditingController();
+  final _handAccYController = TextEditingController();
+  final _handAccZController = TextEditingController();
+  final _handGyroXController = TextEditingController();
+  final _handGyroYController = TextEditingController();
+  final _handGyroZController = TextEditingController();
+  final _handMagnXController = TextEditingController();
+  final _handMagnYController = TextEditingController();
+  final _handMagnZController = TextEditingController();
+  final _handOrientation1Controller = TextEditingController();
+  final _handOrientation2Controller = TextEditingController();
+  final _handOrientation3Controller = TextEditingController();
+  final _handOrientation4Controller = TextEditingController();
+  
   String _activityState = '';
-  double _caloriesBurned = 0.0;
   Map<String, double> _probabilities = {};
   bool _isLoading = false;
 
@@ -37,25 +62,41 @@ class _FitnessTrackingPageState extends State<FitnessTrackingPage> {
   Future<void> _loadSavedData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _heartRateController.text = prefs.getString('heartRate') ?? '';
-      _spo2Controller.text = prefs.getString('spo2') ?? '';
-      _temperatureController.text = prefs.getString('temperature') ?? '';
-      _positionChangeController.text = prefs.getString('positionChange') ?? '';
-      _weightController.text = prefs.getString('weight') ?? '';
-      _ageController.text = prefs.getString('age') ?? '';
-      _gender = prefs.getString('gender') ?? 'male';
+      _hrMeanController.text = prefs.getString('hrMean') ?? '';
+      _tempMeanController.text = prefs.getString('tempMean') ?? '';
+      _handAccXController.text = prefs.getString('handAccX') ?? '';
+      _handAccYController.text = prefs.getString('handAccY') ?? '';
+      _handAccZController.text = prefs.getString('handAccZ') ?? '';
+      _handGyroXController.text = prefs.getString('handGyroX') ?? '';
+      _handGyroYController.text = prefs.getString('handGyroY') ?? '';
+      _handGyroZController.text = prefs.getString('handGyroZ') ?? '';
+      _handMagnXController.text = prefs.getString('handMagnX') ?? '';
+      _handMagnYController.text = prefs.getString('handMagnY') ?? '';
+      _handMagnZController.text = prefs.getString('handMagnZ') ?? '';
+      _handOrientation1Controller.text = prefs.getString('handOrientation1') ?? '';
+      _handOrientation2Controller.text = prefs.getString('handOrientation2') ?? '';
+      _handOrientation3Controller.text = prefs.getString('handOrientation3') ?? '';
+      _handOrientation4Controller.text = prefs.getString('handOrientation4') ?? '';
     });
   }
 
   Future<void> _saveData() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('heartRate', _heartRateController.text);
-    await prefs.setString('spo2', _spo2Controller.text);
-    await prefs.setString('temperature', _temperatureController.text);
-    await prefs.setString('positionChange', _positionChangeController.text);
-    await prefs.setString('weight', _weightController.text);
-    await prefs.setString('age', _ageController.text);
-    await prefs.setString('gender', _gender);
+    await prefs.setString('hrMean', _hrMeanController.text);
+    await prefs.setString('tempMean', _tempMeanController.text);
+    await prefs.setString('handAccX', _handAccXController.text);
+    await prefs.setString('handAccY', _handAccYController.text);
+    await prefs.setString('handAccZ', _handAccZController.text);
+    await prefs.setString('handGyroX', _handGyroXController.text);
+    await prefs.setString('handGyroY', _handGyroYController.text);
+    await prefs.setString('handGyroZ', _handGyroZController.text);
+    await prefs.setString('handMagnX', _handMagnXController.text);
+    await prefs.setString('handMagnY', _handMagnYController.text);
+    await prefs.setString('handMagnZ', _handMagnZController.text);
+    await prefs.setString('handOrientation1', _handOrientation1Controller.text);
+    await prefs.setString('handOrientation2', _handOrientation2Controller.text);
+    await prefs.setString('handOrientation3', _handOrientation3Controller.text);
+    await prefs.setString('handOrientation4', _handOrientation4Controller.text);
   }
 
   Future<void> _analyzeActivity() async {
@@ -64,30 +105,37 @@ class _FitnessTrackingPageState extends State<FitnessTrackingPage> {
     setState(() {
       _isLoading = true;
       _activityState = '';
-      _caloriesBurned = 0.0;
       _probabilities = {};
     });
 
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:5000/predict'),
+        Uri.parse(apiUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'heartRate': int.parse(_heartRateController.text),
-          'spo2': int.parse(_spo2Controller.text),
-          'temperature': double.parse(_temperatureController.text),
-          'positionChange': int.parse(_positionChangeController.text),
-          'weight': double.parse(_weightController.text),
-          'age': int.parse(_ageController.text),
-          'gender': _gender,
+          'HR_Mean': double.parse(_hrMeanController.text),
+          'Temp_Mean': double.parse(_tempMeanController.text),
+          'hand_acc_16g_x_Mean': double.parse(_handAccXController.text),
+          'hand_acc_16g_y_Mean': double.parse(_handAccYController.text),
+          'hand_acc_16g_z_Mean': double.parse(_handAccZController.text),
+          'hand_gyro_x_Mean': double.parse(_handGyroXController.text),
+          'hand_gyro_y_Mean': double.parse(_handGyroYController.text),
+          'hand_gyro_z_Mean': double.parse(_handGyroZController.text),
+          'hand_magn_x_Mean': double.parse(_handMagnXController.text),
+          'hand_magn_y_Mean': double.parse(_handMagnYController.text),
+          'hand_magn_z_Mean': double.parse(_handMagnZController.text),
+          'hand_orientation_1_Mean': double.parse(_handOrientation1Controller.text),
+          'hand_orientation_2_Mean': double.parse(_handOrientation2Controller.text),
+          'hand_orientation_3_Mean': double.parse(_handOrientation3Controller.text),
+          'hand_orientation_4_Mean': double.parse(_handOrientation4Controller.text),
         }),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        final predictedActivity = data['predicted_activity'] as int;
         setState(() {
-          _activityState = data['activity_state'];
-          _caloriesBurned = data['calories_burned'].toDouble();
+          _activityState = activityMapping[predictedActivity] ?? 'Unknown';
           _probabilities = Map<String, double>.from(data['probabilities']);
         });
         await _saveData();
@@ -112,7 +160,7 @@ class _FitnessTrackingPageState extends State<FitnessTrackingPage> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('Fitness Tracking'),
+        title: const Text('Activity Recognition'),
         backgroundColor: Colors.black,
       ),
       body: SingleChildScrollView(
@@ -123,96 +171,94 @@ class _FitnessTrackingPageState extends State<FitnessTrackingPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildInputField(
-                controller: _heartRateController,
-                label: 'Heart Rate (bpm)',
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter heart rate';
-                  }
-                  final rate = int.tryParse(value);
-                  if (rate == null || rate < 40 || rate > 200) {
-                    return 'Heart rate must be between 40 and 200';
-                  }
-                  return null;
-                },
+                controller: _hrMeanController,
+                label: 'Heart Rate Mean',
+                validator: _validateDouble,
               ),
               const SizedBox(height: 16),
               _buildInputField(
-                controller: _spo2Controller,
-                label: 'SpO2 (%)',
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter SpO2';
-                  }
-                  final spo2 = int.tryParse(value);
-                  if (spo2 == null || spo2 < 70 || spo2 > 100) {
-                    return 'SpO2 must be between 70 and 100';
-                  }
-                  return null;
-                },
+                controller: _tempMeanController,
+                label: 'Temperature Mean',
+                validator: _validateDouble,
               ),
               const SizedBox(height: 16),
               _buildInputField(
-                controller: _temperatureController,
-                label: 'Temperature (°C)',
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter temperature';
-                  }
-                  final temp = double.tryParse(value);
-                  if (temp == null || temp < 35 || temp > 42) {
-                    return 'Temperature must be between 35 and 42';
-                  }
-                  return null;
-                },
+                controller: _handAccXController,
+                label: 'Hand Acceleration X',
+                validator: _validateDouble,
               ),
               const SizedBox(height: 16),
               _buildInputField(
-                controller: _positionChangeController,
-                label: 'Position Changes',
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter position changes';
-                  }
-                  final changes = int.tryParse(value);
-                  if (changes == null || changes < 0) {
-                    return 'Position changes must be a positive number';
-                  }
-                  return null;
-                },
+                controller: _handAccYController,
+                label: 'Hand Acceleration Y',
+                validator: _validateDouble,
               ),
               const SizedBox(height: 16),
               _buildInputField(
-                controller: _weightController,
-                label: 'Weight (kg)',
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter weight';
-                  }
-                  final weight = double.tryParse(value);
-                  if (weight == null || weight < 20 || weight > 200) {
-                    return 'Weight must be between 20 and 200';
-                  }
-                  return null;
-                },
+                controller: _handAccZController,
+                label: 'Hand Acceleration Z',
+                validator: _validateDouble,
               ),
               const SizedBox(height: 16),
               _buildInputField(
-                controller: _ageController,
-                label: 'Age',
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter age';
-                  }
-                  final age = int.tryParse(value);
-                  if (age == null || age < 1 || age > 120) {
-                    return 'Age must be between 1 and 120';
-                  }
-                  return null;
-                },
+                controller: _handGyroXController,
+                label: 'Hand Gyroscope X',
+                validator: _validateDouble,
               ),
               const SizedBox(height: 16),
-              _buildGenderSelector(),
+              _buildInputField(
+                controller: _handGyroYController,
+                label: 'Hand Gyroscope Y',
+                validator: _validateDouble,
+              ),
+              const SizedBox(height: 16),
+              _buildInputField(
+                controller: _handGyroZController,
+                label: 'Hand Gyroscope Z',
+                validator: _validateDouble,
+              ),
+              const SizedBox(height: 16),
+              _buildInputField(
+                controller: _handMagnXController,
+                label: 'Hand Magnetometer X',
+                validator: _validateDouble,
+              ),
+              const SizedBox(height: 16),
+              _buildInputField(
+                controller: _handMagnYController,
+                label: 'Hand Magnetometer Y',
+                validator: _validateDouble,
+              ),
+              const SizedBox(height: 16),
+              _buildInputField(
+                controller: _handMagnZController,
+                label: 'Hand Magnetometer Z',
+                validator: _validateDouble,
+              ),
+              const SizedBox(height: 16),
+              _buildInputField(
+                controller: _handOrientation1Controller,
+                label: 'Hand Orientation 1',
+                validator: _validateDouble,
+              ),
+              const SizedBox(height: 16),
+              _buildInputField(
+                controller: _handOrientation2Controller,
+                label: 'Hand Orientation 2',
+                validator: _validateDouble,
+              ),
+              const SizedBox(height: 16),
+              _buildInputField(
+                controller: _handOrientation3Controller,
+                label: 'Hand Orientation 3',
+                validator: _validateDouble,
+              ),
+              const SizedBox(height: 16),
+              _buildInputField(
+                controller: _handOrientation4Controller,
+                label: 'Hand Orientation 4',
+                validator: _validateDouble,
+              ),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _isLoading ? null : _analyzeActivity,
@@ -233,6 +279,16 @@ class _FitnessTrackingPageState extends State<FitnessTrackingPage> {
         ),
       ),
     );
+  }
+
+  String? _validateDouble(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter a value';
+    }
+    if (double.tryParse(value) == null) {
+      return 'Please enter a valid number';
+    }
+    return null;
   }
 
   Widget _buildInputField({
@@ -264,39 +320,6 @@ class _FitnessTrackingPageState extends State<FitnessTrackingPage> {
       ),
       style: const TextStyle(color: Colors.white),
       validator: validator,
-      keyboardType: TextInputType.number,
-    );
-  }
-
-  Widget _buildGenderSelector() {
-    return Row(
-      children: [
-        const Text(
-          'Gender:',
-          style: TextStyle(color: Colors.white, fontSize: 16),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(
-                value: 'male',
-                label: Text('Male'),
-              ),
-              ButtonSegment(
-                value: 'female',
-                label: Text('Female'),
-              ),
-            ],
-            selected: {_gender},
-            onSelectionChanged: (Set<String> newSelection) {
-              setState(() {
-                _gender = newSelection.first;
-              });
-            },
-          ),
-        ),
-      ],
     );
   }
 
@@ -308,63 +331,38 @@ class _FitnessTrackingPageState extends State<FitnessTrackingPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Activity Analysis',
-              style: TextStyle(
+            Text(
+              'Detected Activity: $_activityState',
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 16),
-            Text(
-              'Current State: $_activityState',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Calories Burned: ${_caloriesBurned.toStringAsFixed(2)} kcal',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-              ),
-            ),
-            const SizedBox(height: 16),
             const Text(
-              'State Probabilities:',
+              'Activity Probabilities:',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 8),
             ..._probabilities.entries.map((entry) {
-              final isSelected = entry.key == _activityState;
+              final activityName = activityMapping[int.parse(entry.key)] ?? 'Unknown';
               return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
-                      child: Text(
-                        entry.key,
-                        style: TextStyle(
-                          color: isSelected ? Colors.green : Colors.white,
-                          fontSize: 16,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
+                    Text(
+                      activityName,
+                      style: const TextStyle(color: Colors.white),
                     ),
                     Text(
                       '${(entry.value * 100).toStringAsFixed(1)}%',
-                      style: TextStyle(
-                        color: isSelected ? Colors.green : Colors.white,
-                        fontSize: 16,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      ),
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ],
                 ),
