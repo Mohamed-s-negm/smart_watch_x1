@@ -19,7 +19,7 @@ class _FridgePageState extends State<FridgePage> {
   final ImagePicker _picker = ImagePicker();
   
   // Update this to your server's IP address
-  static const String serverUrl = 'http://192.168.173.213:5000';  // Your computer's IP address
+  static const String serverUrl = 'http://192.168.1.3:5000';  // Your computer's IP address
 
   Future<void> _scanFridgeImages() async {
     setState(() {
